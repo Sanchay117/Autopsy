@@ -602,8 +602,17 @@ export function Dashboard() {
                   {view.metalPayouts.map((m) => (
                     <div key={m.paymentId} className="d-rule">
                       <span className="mono id">{m.outcome}</span>
-                      <p>{fmt(m.amount, "USD")} to {m.payee}</p>
-                      <span className="mono d-small dim">payment id {m.paymentId}{m.transaction ? ` · tx ${m.transaction.slice(0, 18)}…` : ""} · {m.detail}</span>
+                      <p>
+                        {fmt(m.amount, "USD")}
+                        {m.onChain !== undefined && <> as {m.onChain.toFixed(2)} *USDZ (testnet, scaled)</>} to {m.payee}
+                      </p>
+                      <span className="mono d-small dim">
+                        payment id {m.paymentId}
+                        {m.transaction && (
+                          <> · {m.explorer ? <a href={m.explorer} target="_blank" rel="noreferrer">tx {m.transaction.slice(0, 18)}…</a> : `tx ${m.transaction.slice(0, 18)}…`}</>
+                        )}
+                        {" · "}{m.detail}
+                      </span>
                     </div>
                   ))}
                 </div>

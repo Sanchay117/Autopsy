@@ -150,7 +150,8 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
         ctx.metalPayouts.push({ ...p, decisionId: d.id, invoice });
         if (p.outcome !== "paid") return { ok: false, text: `Metal ${p.outcome}: ${p.detail}`, objects: [] };
         line({ entryId: invoice, currency: entry!.currency, amount: entry!.amount, kind: "METAL_SETTLEMENT", memo: `${invoice} settled on Metal: ${fmt(o.amount, "USD")} to ${p.payee.slice(0, 10)}…` });
-        return { ok: true, text: `Settled ${invoice} on Metal ${ctx.metal.mode}: ${fmt(o.amount, "USD")} to ${p.payee.slice(0, 10)}…, payment id ${paymentId}${p.transaction ? `, tx ${p.transaction.slice(0, 12)}…` : ""}`, objects: [] };
+        const scaled = p.onChain !== undefined ? ` (sent as ${p.onChain.toFixed(2)} *USDZ: testnet amounts are scaled down)` : "";
+        return { ok: true, text: `Settled ${invoice} on Metal ${ctx.metal.mode}: ${fmt(o.amount, "USD")}${scaled} to ${p.payee.slice(0, 10)}…, payment id ${paymentId}${p.transaction ? `, tx ${p.transaction.slice(0, 12)}…` : ""}`, objects: [] };
       }
       const ben = ctx.beneficiaries[vendor!.id];
       const method = entry!.method ?? "LOCAL";

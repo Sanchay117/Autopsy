@@ -82,6 +82,21 @@ When a SWIFT payment comes back and the supplier has accepted stablecoin settlem
 - **Mock (default):** keeps the same at-most-once rule offline.
 - **Off:** set `METAL_MODE=off` and Metal is never used.
 
+To run it on testnet:
+
+```bash
+npm install -g @metalntwx/metal-agent@0.3.3
+# add METAL_RPC_URL to .env.local: an endpoint from https://console-testnet.metalntwx.com
+pnpm setup:metal                # creates a Metal account, funds it from the faucet, binds the mandate
+METAL_MODE=testnet pnpm dev
+```
+
+`setup:metal` keeps its keys and the credential in `.autopsy/metal/`, which is git-ignored. The mandate it binds may pay only Brennholz's wallet from the vendor master, at most 10 *USDZ a payment and 90 *USDZ in all. Metal checks those limits on chain at every payment, not Autopsy.
+
+The faucet grants 100 *USDZ at a time, so testnet settles a scaled amount: `METAL_SCALE` (0.001 by default) *USDZ per USD. The dashboard and the trace say so next to every testnet payout. The 10 *USDZ cap means an amount that was not scaled can never pay.
+
+**Status:** run on 3 November 2026 with the sandbox. E2 settled INV-2044 for USD 4,516.45 as 4.52 *USDZ, payment id `INV-2044-r2-5f584c`, transaction [0x203e…9767](https://testnet.metalntwx.com/tx/0x203ed6355032e277a581f79c4668bdee7004071d6beb002bc33e952ba5889767). `metal-agent mandate verify` passed all four checks for it: the mandate is bound, the credential matches it, its signatures hold, and the payment is inside its limits.
+
 ## Running against the real sandbox
 
 ```bash
@@ -149,7 +164,7 @@ app/api/audit/route.ts    seed, audit, inject evidence, approve, resend
 lib/engine/               the agent: reconcile, diagnose, replay, decide, act, lock, learn, read, policy
 lib/rails/airwallex/      one interface, a sandbox client and an offline mock
 lib/rails/metal.ts        testnet CLI, mock and off
-scripts/                  smoke, eval, setup-sandbox, feasibility
+scripts/                  smoke, eval, setup-sandbox, setup-metal, feasibility
 ```
 
 ## Credits

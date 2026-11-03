@@ -34,6 +34,12 @@ function sandboxConfig(): SandboxConfig | null {
   return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as SandboxConfig) : null;
 }
 
+/** The mandate credential pnpm setup:metal writes, if it has run. */
+function metalCredential(): string | undefined {
+  const file = path.join(process.cwd(), ".autopsy", "metal", "mandate.json");
+  return existsSync(file) ? file : undefined;
+}
+
 /**
  * One audit of one company, held in memory. Every mutation goes through a
  * queue, so two clicks in the dashboard can never act on the same state.
@@ -84,10 +90,15 @@ export class Session {
       this.rail = new MockAirwallex();
     }
     const m = opts.offline ? "mock" : process.env.METAL_MODE ?? "mock";
-    this.metal =
-      m === "testnet" && process.env.METAL_CREDENTIAL && process.env.METAL_RPC_URL
-        ? new TestnetMetal(process.env.METAL_CREDENTIAL, process.env.METAL_RPC_URL)
-        : m === "off" ? new OffMetal() : new MockMetal(10_000);
+    if (m === "testnet") {
+      const credential = process.env.METAL_CREDENTIAL || metalCredential();
+      if (!credential || !process.env.METAL_RPC_URL) {
+        throw new Error("METAL_MODE=testnet needs METAL_RPC_URL and a bound mandate (run pnpm setup:metal)");
+      }
+      this.metal = new TestnetMetal(credential, process.env.METAL_RPC_URL, Number(process.env.METAL_SCALE || 0.001));
+    } else {
+      this.metal = m === "off" ? new OffMetal() : new MockMetal(10_000);
+    }
     this.lock = new DuplicateLock(this.rail, this.ns);
     for (const v of VENDORS) {
       this.beneficiaries[v.id] = {

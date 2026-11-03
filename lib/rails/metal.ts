@@ -10,6 +10,8 @@ export interface MetalPayout {
   spent: string;
   payee: string;
   amount: number;
+  /** *USDZ actually sent, when testnet settles a scaled-down amount. */
+  onChain?: number;
   paymentId: string;
   explorer?: string;
   detail: string;
@@ -68,20 +70,23 @@ export class MockMetal implements MetalRail {
   }
 }
 
-/** Calls the metal-agent CLI. Needs METAL_CREDENTIAL and METAL_RPC_URL. */
+/** Calls the metal-agent CLI with a mandate credential and the user's RPC endpoint. */
 export class TestnetMetal implements MetalRail {
   mode = "testnet" as const;
   constructor(
     private credential: string,
     private rpcUrl: string,
+    /** *USDZ sent per USD settled. The testnet faucet grants 100 *USDZ at a time, so real invoice amounts do not fit. */
+    private scale = 1,
   ) {}
 
   async payout(req: { to: string; amount: number; paymentId: string }): Promise<MetalPayout> {
+    const onChain = Math.max(0.01, Math.round(req.amount * this.scale * 100) / 100);
     const args = [
       "mandate", "pull",
       "--credential", this.credential,
       "--to", req.to,
-      "--amount", req.amount.toFixed(2),
+      "--amount", onChain.toFixed(2),
       "--payment-id", req.paymentId,
       "--network", "testnet",
       "--rpc-url", this.rpcUrl,
@@ -104,9 +109,11 @@ export class TestnetMetal implements MetalRail {
       spent: field("spent") ?? "",
       payee: field("payee") ?? req.to,
       amount: req.amount,
+      onChain: onChain === req.amount ? undefined : onChain,
       paymentId: req.paymentId,
       explorer: field("explorer"),
-      detail: stdout.trim().split("\n").slice(-1)[0] ?? "",
+      // A paid pull's last line is its gas; the mandate's spend says more. Anything else ends with the reason.
+      detail: outcome === "paid" && field("spent") ? `mandate spent ${field("spent")}` : (stdout.trim().split("\n").slice(-1)[0] ?? ""),
     };
   }
 }
