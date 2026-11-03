@@ -4,7 +4,13 @@ import { resetSession, session, type InjectKind } from "@/lib/engine/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // ?since=N is the dashboard polling a running step: only the new trace lines and what is happening now.
+  const since = new URL(req.url).searchParams.get("since");
+  if (since !== null) {
+    const s = session();
+    return NextResponse.json({ trace: s.trace.slice(Number(since) || 0), activity: s.activity });
+  }
   return NextResponse.json(session().view());
 }
 

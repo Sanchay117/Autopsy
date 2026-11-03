@@ -15,6 +15,16 @@ type Body =
 
 type Tab = "trace" | "changes" | "ledger" | "drafts" | "rules";
 
+type TraceStep = AuditView["trace"][number];
+
+/** A step in flight: trace lines logged since it started, what is happening now, and when it started. */
+interface Live {
+  trace: TraceStep[];
+  activity: string | null;
+  started: number;
+  now: number;
+}
+
 const MONEY = /^-?[A-Z]{3} [\d,.]+$/;
 
 const FINAL = ["CANCEL_DUPLICATE", "TOP_UP", "POST_ADJUSTMENT", "PAY", "REPLACE", "CONVERT", "REQUEST_DETAILS"];
@@ -63,6 +73,7 @@ export function Dashboard() {
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("trace");
+  const [live, setLive] = useState<Live | null>(null);
   const rightPane = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -72,10 +83,22 @@ export function Dashboard() {
       .catch(() => setError("Could not reach the audit API"));
   }, []);
 
-  const post = useCallback(async (body: Body, label: string) => {
+  const post = useCallback(async (body: Body, label: string, since: number) => {
     setBusy(label);
     setError(null);
     setNotice(null);
+    const started = Date.now();
+    setLive({ trace: [], activity: null, started, now: started });
+    // On the sandbox a step takes tens of seconds. Poll it so the trace fills in while the agent works.
+    let polling = true;
+    const timer = setInterval(async () => {
+      try {
+        const p = (await (await fetch(`/api/audit?since=${since}`)).json()) as Pick<Live, "trace" | "activity">;
+        if (polling) setLive({ ...p, started, now: Date.now() });
+      } catch {
+        // A missed poll only delays the feed. The step's own response still arrives.
+      }
+    }, 700);
     try {
       const res = await fetch("/api/audit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = (await res.json()) as { view: AuditView; error?: string; result?: { ok?: boolean; reason?: string; refused?: boolean } };
@@ -85,6 +108,9 @@ export function Dashboard() {
     } catch {
       setError("The request failed");
     } finally {
+      polling = false;
+      clearInterval(timer);
+      setLive(null);
       setBusy(null);
     }
   }, []);
@@ -93,7 +119,7 @@ export function Dashboard() {
   useEffect(() => {
     const el = rightPane.current;
     if (el) el.scrollTop = tab === "trace" ? el.scrollHeight : 0;
-  }, [view?.trace.length, view?.diffs.length, tab]);
+  }, [view?.trace.length, view?.diffs.length, live?.trace.length, live?.activity, tab]);
 
   const decisionFor = useCallback((id: string) => view?.decisions.find((d) => d.breakId === id), [view]);
 
@@ -126,7 +152,9 @@ export function Dashboard() {
 
   const run = async (body: Body, label: string) => {
     const before = view.diffs.length;
-    const res = await post(body, label);
+    // Watch the agent work in the trace; evidence switches to its changes when it is done.
+    if (body.action !== "reset" && body.action !== "resend") setTab("trace");
+    const res = await post(body, label, view.trace.length);
     if (!res?.view) return;
     if (body.action === "inject" && res.view.diffs.length > before) {
       const diff = res.view.diffs.at(-1)!;
@@ -159,7 +187,9 @@ export function Dashboard() {
     return p.bank !== 0 || p.books !== 0 || (o && o.variance !== 0);
   });
   const needs = view.decisions.filter((d) => d.status === "awaiting_approval").length;
-  const live = (inv: string) => view.ledger.transfers.some((t) => t.invoice === inv && ["PROCESSING", "SENT", "PAID"].includes(t.status));
+  const trace = live ? [...view.trace, ...live.trace] : view.trace;
+  const secs = live ? Math.round((live.now - live.started) / 1000) : 0;
+  const livePayment = (inv: string) => view.ledger.transfers.some((t) => t.invoice === inv && ["PROCESSING", "SENT", "PAID"].includes(t.status));
 
   return (
     <div className="d-shell">
@@ -189,7 +219,7 @@ export function Dashboard() {
           <button key={s.n} className={`d-step${s.done ? " done" : ""}`} disabled={!s.enabled || !!busy} onClick={() => run(s.body, s.label)}>
             <span className="mono n">{s.n}</span>
             <span className="l">{s.label}</span>
-            <span className="mono s">{busy === s.label ? "running…" : s.done ? "done" : s.sub}</span>
+            <span className="mono s">{busy === s.label ? `running · ${secs}s` : s.done ? "done" : s.sub}</span>
           </button>
         ))}
         <div className="d-needs mono">
@@ -207,11 +237,20 @@ export function Dashboard() {
           <h1>No inquiry yet.</h1>
           <p>
             Seeding puts one month of {view.company} into Airwallex {view.mode.airwallex === "sandbox" ? "sandbox" : "(offline mock)"}: a funding
-            deposit, two FX conversions, five payouts, one inbox. Six of those do not tally with the books. Nothing tells the agent which.
+            deposit, two FX conversions, five payouts, one inbox. Six of those are planted not to tally with the books
+            {view.mode.airwallex === "sandbox" ? ", and the sandbox's real payout fees add a few more" : ""}. Nothing tells the agent which.
           </p>
           <button className="btn solid" disabled={!!busy} onClick={() => run({ action: "seed" }, steps[0].label)}>
-            {busy ? "Seeding…" : "Seed the sandbox"}
+            {busy ? `Seeding · ${secs}s` : "Seed the sandbox"}
           </button>
+          {live && (
+            <ol className="d-live" aria-live="polite">
+              {live.trace.slice(-5).map((t, i) => (
+                <li key={live.trace.length - 5 + i}>{t.text}</li>
+              ))}
+              {live.activity && <li className="now">{live.activity}</li>}
+            </ol>
+          )}
         </section>
       ) : (
         <div className="d-grid">
@@ -433,7 +472,7 @@ export function Dashboard() {
                       </div>
                     )}
 
-                    {sel && sel.entryIds[0]?.startsWith("INV-") && live(sel.entryIds[0]) && (
+                    {sel && sel.entryIds[0]?.startsWith("INV-") && livePayment(sel.entryIds[0]) && (
                       <div className="d-resend">
                         <span className="mono dim">What if someone sends it again by hand?</span>
                         <button className="btn" disabled={!!busy} onClick={() => run({ action: "resend", invoice: sel.entryIds[0] }, "Resend")}>
@@ -463,12 +502,18 @@ export function Dashboard() {
             <div className="d-pane">
               {tab === "trace" && (
                 <ol className="d-trace">
-                  {view.trace.map((t, i) => (
+                  {trace.map((t, i) => (
                     <li key={i} className={t.stage}>
                       <span className="mono st">{t.stage}</span>
                       <span className="tx">{t.text}</span>
                     </li>
                   ))}
+                  {live?.activity && (
+                    <li className="now" aria-live="polite">
+                      <span className="mono st">now</span>
+                      <span className="tx">{live.activity}</span>
+                    </li>
+                  )}
                 </ol>
               )}
 

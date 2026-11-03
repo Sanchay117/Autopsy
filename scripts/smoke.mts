@@ -1,4 +1,5 @@
-// Runs the whole demo against the offline mock and prints what a judge would see.
+// Runs the whole demo and prints what a judge would see: on the offline mock by
+// default, on the sandbox when .env.local sets AWX_MODE=sandbox.
 import { resetSession } from "@/lib/engine/session";
 
 const s = resetSession();

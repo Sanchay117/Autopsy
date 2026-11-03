@@ -111,7 +111,7 @@ AWX_MODE=sandbox pnpm dev
 ## Checks
 
 ```bash
-pnpm smoke    # the whole demo on the mock, printed step by step
+pnpm smoke    # the whole demo, printed step by step (on the sandbox when .env.local sets AWX_MODE=sandbox)
 pnpm eval     # 200 shuffled runs with safety checks after every step
 ```
 

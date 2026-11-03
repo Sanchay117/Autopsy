@@ -69,6 +69,8 @@ export class Session {
   opening?: Detection;
   latest?: Detection;
   audits = 0;
+  /** What the agent is doing right now, for the dashboard while a step runs. */
+  activity: string | null = null;
 
   /** `offline` forces the mock rails and rule-based reading, for the landing page preview. */
   constructor(private opts: { offline?: boolean } = {}) {
@@ -101,13 +103,24 @@ export class Session {
 
   /** Run `fn` after everything queued before it. */
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.queue.then(fn, fn);
+    const run = async () => {
+      try {
+        return await fn();
+      } finally {
+        this.activity = null;
+      }
+    };
+    const next = this.queue.then(run, run);
     this.queue = next.catch(() => undefined);
     return next;
   }
 
   private log(stage: TraceStep["stage"], text: string, ref?: string) {
     this.trace.push({ at: new Date().toISOString(), stage, text, ref });
+  }
+
+  private doing(text: string) {
+    this.activity = text;
   }
 
   private observe(t: Transfer): Transfer {
@@ -127,10 +140,12 @@ export class Session {
       const rid = (k: string) => `seed-${k}-${this.ns}`;
       this.log("seed", `Seeding ${COMPANY} into Airwallex ${this.rail.mode === "sandbox" ? "sandbox" : "mock"}, run ${this.ns}`);
 
+      this.doing("Simulating the USD 30,000 funding deposit");
       const funding = await this.rail.simulateDeposit({ amount: 30_000, currency: "USD", payer_name: "HARROW & FINCH TREASURY" });
       this.ids.deposits.push(funding.id);
       this.log("seed", `Deposited ${fmt(30_000, "USD")} into the USD pocket (simulated deposit)`, funding.id);
 
+      this.doing("Buying EUR and GBP with USD (FXP-118, FXP-119)");
       const c118 = await this.rail.convert({ request_id: rid("FXP-118"), buy_currency: "EUR", sell_currency: "USD", buy_amount: 6_000, metadata: { plan: "FXP-118", autopsy: this.ns } });
       const c119 = await this.rail.convert({ request_id: rid("FXP-119"), buy_currency: "GBP", sell_currency: "USD", buy_amount: 3_200, metadata: { plan: "FXP-119", autopsy: this.ns } });
       this.ids.conversions.push(c118.id, c119.id);
@@ -144,6 +159,7 @@ export class Session {
       const pay = async (inv: string, suffix = "a") => {
         const e = this.books.find((b) => b.id === inv)!;
         const v = VENDORS.find((x) => x.name === e.counterparty)!;
+        this.doing(`Paying ${inv} to ${e.counterparty}`);
         const t = await this.rail.createTransfer({
           request_id: rid(`${inv}-${suffix}`),
           beneficiary: this.beneficiaries[v.id],
@@ -158,7 +174,10 @@ export class Session {
         return t;
       };
       const move = async (t: Transfer, ...steps: [TransferStatus, string?][]) => {
-        for (const [s, f] of steps) this.observe(await this.rail.transition(t.id, s, f));
+        for (const [s, f] of steps) {
+          this.doing(`Moving ${t.metadata.invoice} to ${s}${f ? ` (${f})` : ""}`);
+          this.observe(await this.rail.transition(t.id, s, f));
+        }
       };
 
       const harbour = await pay("INV-2039");
@@ -189,6 +208,8 @@ export class Session {
   // ---------- The audit loop ----------
 
   private async readGround() {
+    const { transfers: t, conversions: c, deposits: d } = this.ids;
+    this.doing(`Reading ${t.length} transfers, ${c.length} conversions and ${d.length} deposits from Airwallex`);
     const [transfers, conversions, deposits] = await Promise.all([
       Promise.all(this.ids.transfers.map(async (id) => this.observe(await this.rail.getTransfer(id)))),
       Promise.all(this.ids.conversions.map((id) => this.rail.getConversion(id))),
@@ -205,10 +226,15 @@ export class Session {
     };
     for (const e of this.emails) {
       if (this.claims.some((c) => c.emailId === e.id)) continue;
+      this.doing(`${this.claude() ? "Claude is reading" : "Reading"} ${e.id} from ${e.from}`);
       const c = await readEmail(e, known, !this.opts.offline);
       this.claims.push(c);
       this.log("evidence", `${e.id} read by ${c.extractedBy === "claude" ? "Claude" : "rules"}: ${c.counterparty}, ${c.claim.replace(/_/g, " ")} (${c.invoiceRefs.join(", ") || "no invoice"})${c.quotedAccount ? `, quotes ${c.quotedAccount}` : ""}`, `ev:${e.id}`);
     }
+  }
+
+  private claude() {
+    return modelEnabled() && !this.opts.offline;
   }
 
   private detectNow() {
@@ -238,6 +264,7 @@ export class Session {
 
     this.evidence = buildEvidence(this.ground, this.books, this.emails, this.claims, SENT_ON);
     let diags = diagnose({ breaks: det.breaks, ground: this.ground, books: this.books, claims: this.claims, vendors: VENDORS, pockets: POCKETS, auditDate: AUDIT_DATE, sentOn: SENT_ON });
+    this.doing(`${this.claude() ? "Claude is wording" : "Wording"} ${diags.length} explanations`);
     diags = await explain(diags, !this.opts.offline);
     for (const d of diags) {
       const prev = this.diagnoses.get(d.breakId);
@@ -312,6 +339,7 @@ export class Session {
   }
 
   private async carryOut(d: Decision, approved: boolean) {
+    this.doing(`${d.id}: ${d.chosen.label}`);
     const res = await execute(this.ctx(), d);
     const status: Decision["status"] = !res.ok ? "refused" : d.chosen.kind === "CONVERT" ? "scheduled" : "executed";
     this.decisions.set(d.id, { ...d, status, result: res.text, approved: approved || undefined });
@@ -342,6 +370,7 @@ export class Session {
       let touched: string[] = [];
 
       if (kind === "deposit") {
+        this.doing(`Simulating ${ALDER_DEPOSIT.payer_name}'s deposit`);
         const d = await this.rail.simulateDeposit({ ...ALDER_DEPOSIT, currency: "USD" });
         this.ids.deposits.push(d.id);
         evidenceId = `ev:${d.id}`;
@@ -350,6 +379,7 @@ export class Session {
       } else if (kind === "return") {
         const t = this.ground.transfers.find((x) => x.metadata.invoice === "INV-2044" && x.status === "SENT");
         if (!t) throw new Error("INV-2044 is no longer in flight");
+        this.doing("Having Brennholz's bank return INV-2044");
         this.observe(await this.rail.transition(t.id, "FAILED", "BENEFICIARY_BANK_RETURNED"));
         evidenceId = `ev:${t.id}`;
         label = `Bank return: Brennholz's bank sends INV-2044 back`;
@@ -440,7 +470,7 @@ export class Session {
       company: COMPANY,
       auditDate: AUDIT_DATE,
       run: this.ns,
-      mode: { airwallex: this.rail.mode, metal: this.metal.mode, model: modelEnabled() && !this.opts.offline ? "claude-opus-5-5" : "rules" },
+      mode: { airwallex: this.rail.mode, metal: this.metal.mode, model: this.claude() ? "claude-opus-5-5" : "rules" },
       seeded: this.seeded,
       audits: this.audits,
       injected: this.injected,

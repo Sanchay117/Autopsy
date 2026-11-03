@@ -843,6 +843,54 @@
   from { opacity: 0; transform: translateX(-4px); }
 }
 
+/* What the agent is doing while a step runs: a live coal at the foot of the trace. */
+.d-trace li.now {
+  border-bottom: 0;
+}
+
+.d-trace li.now .st {
+  color: var(--flame);
+}
+
+.d-trace li.now .tx,
+.d-live li.now {
+  color: var(--smoke);
+}
+
+.d-trace li.now .st::before,
+.d-live li.now::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--ember);
+  vertical-align: 1px;
+  animation: coal 1.4s ease-in-out infinite;
+}
+
+@keyframes coal {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.d-live {
+  list-style: none;
+  width: 100%;
+  max-width: 620px;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--smoke-dim);
+}
+
+.d-live li {
+  animation: line-in 0.35s ease both;
+}
+
 .d-trace .st {
   font-size: 10px;
   padding-top: 2px;
