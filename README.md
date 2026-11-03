@@ -104,7 +104,7 @@ AWX_MODE=sandbox pnpm dev
 
 **Status:** run end to end against a live sandbox account on 3 November 2026 with `AWX_API_VERSION=2025-02-14`. The seed, the audit, all three pieces of evidence and the approvals ran, and every pocket ended with zero variance and zero residual. What the sandbox does that the mock does not:
 
-- Local payouts carry fees (GBP 2.24 on Faster Payments, USD 3.00 on ACH) and SWIFT costs EUR 13.41, not 12.85. The audit finds these as extra fee breaks and books them, so a sandbox run shows more than six breaks.
+- Local payouts carry fees (GBP 2.24 on Faster Payments, USD 3.00 on ACH) and SWIFT costs EUR 13.41, not 12.85. The audit finds the seeded ones as extra fee breaks and books them, so a sandbox run shows more than six breaks. Payouts Autopsy makes itself book their fee at the time they are made.
 - The sandbox's FX rate makes FXP-118 cost about USD 220 more than the plan, so the FX break is a loss rather than the mock's gain.
 - Conversions live at `/api/v1/fx/conversions`. A new transfer stays SCHEDULED for about a second and refuses simulated moves until it is PROCESSING. It also refuses cancel while SCHEDULED and for a moment after turning PROCESSING. SWIFT payouts created close together sometimes return `fee_unknown`. The client waits or retries in each case, and never with a new request id.
 

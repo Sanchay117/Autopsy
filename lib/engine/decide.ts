@@ -1,4 +1,4 @@
-import { fmt, r2, SWIFT_FEE, toUsd, type UsdRates } from "./money";
+import { fmt, r2, swiftFeeFrom, toUsd, type UsdRates } from "./money";
 import { autonomyLimitUsd, bindingHash, POLICY } from "./policy";
 import { confidence, WEIGHT } from "./diagnose";
 import type { Vendor } from "./scenario";
@@ -56,9 +56,7 @@ export function decide(input: DecideInput): Decision[] {
   const entry = (id: string) => books.find((b) => b.id === id)!;
   const usd = (a: number, c: Currency) => toUsd(a, c, rates);
   const hasRule = (id: string) => rules.some((r) => r.id === id);
-  // The SWIFT fee Airwallex last charged in a currency; the list price until one is seen.
-  const swiftFee = (c: Currency) =>
-    transfers.filter((t) => t.transfer_method === "SWIFT" && t.fee_currency === c && t.fee_amount > 0).at(-1)?.fee_amount ?? SWIFT_FEE[c];
+  const swiftFee = (c: Currency) => swiftFeeFrom(transfers, c);
 
   const opt = (
     kind: ActionKind,

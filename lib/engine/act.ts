@@ -2,7 +2,7 @@ import type { AirwallexRail } from "@/lib/rails/airwallex/rail";
 import { RailError } from "@/lib/rails/airwallex/rail";
 import type { MetalPayout, MetalRail } from "@/lib/rails/metal";
 import { DuplicateLock, LockRefused } from "./lock";
-import { fmt, SWIFT_FEE } from "./money";
+import { fmt, r2, schemesOf, swiftFeeFrom } from "./money";
 import type { JournalLine } from "./reconcile";
 import type { Vendor } from "./scenario";
 import type { ActionKind, Beneficiary, BookEntry, Break, Currency, Decision, Rule, Transfer } from "./types";
@@ -78,6 +78,12 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
     return c;
   };
 
+  /** Book a payout's fee with the payout, as AP would, so the next audit does not find it as a break. */
+  const bookFee = (t: Transfer, upFront = 0) => {
+    const rest = r2(t.fee_amount - upFront);
+    if (Math.abs(rest) > 0.004) line({ entryId: invoice, currency: t.fee_currency, amount: -rest, kind: "FEE_EXPENSE", memo: `${schemesOf([t])} fee on ${invoice}, booked with the payment` });
+  };
+
   switch (o.kind) {
     case "CANCEL_DUPLICATE": {
       const extras = b!.objectIds.slice(1);
@@ -131,6 +137,7 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
         }),
       );
       ctx.track("transfer", transfer.id);
+      if (!reused) bookFee(transfer);
       entry!.booked = "paid";
       return { ok: true, text: `${reused ? "Found existing" : "Sent"} ${transfer.short_reference_id}: ${fmt(o.amount, o.currency)} to ${o.counterparty} (request ${transfer.request_id})`, objects: [transfer.id] };
     }
@@ -150,12 +157,12 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
       const feeAware = method === "SWIFT" && ctx.rules.some((r) => r.id === "R-FEE");
       // Lock first, so a refused replacement never buys the currency for its fee.
       await ctx.lock.assertFree(prior(invoice));
+      const fee = feeAware ? swiftFeeFrom(ctx.transfers, o.currency) : 0;
       if (feeAware) {
-        const fee = SWIFT_FEE[o.currency];
         line({ entryId: invoice, currency: o.currency, amount: -fee, kind: "FEE_EXPENSE", memo: `SWIFT fee on ${invoice} replacement, booked up front (R-FEE)` });
         await fund(fee, o.currency, `${invoice}-fee-r${prior(invoice).length + 1}`, `Fund SWIFT fee for ${invoice} replacement (R-FEE)`);
       }
-      const { transfer } = await ctx.lock.pay(invoice, prior(invoice), (requestId) =>
+      const { transfer, reused } = await ctx.lock.pay(invoice, prior(invoice), (requestId) =>
         ctx.rail.createTransfer({
           request_id: requestId,
           beneficiary: ben,
@@ -167,9 +174,11 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
         }),
       );
       ctx.track("transfer", transfer.id);
+      // The fee booked up front is the expected one. Book any difference from what the bank charged.
+      if (!reused) bookFee(transfer, fee);
       return {
         ok: true,
-        text: `Sent replacement ${transfer.short_reference_id}: ${fmt(o.amount, o.currency)} ${method}${feeAware ? `, fee ${fmt(SWIFT_FEE[o.currency], o.currency)} funded first (R-FEE)` : ""}`,
+        text: `Sent replacement ${transfer.short_reference_id}: ${fmt(o.amount, o.currency)} ${method}${feeAware ? `, fee ${fmt(fee, o.currency)} funded first (R-FEE)` : ""}`,
         objects: [transfer.id],
       };
     }

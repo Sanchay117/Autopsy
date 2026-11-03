@@ -185,8 +185,13 @@ export class SandboxAirwallex implements AirwallexRail {
 // so the duplicate lock counts a payment from the moment it is created.
 const statusOf = (s: unknown) => (s === "SCHEDULED" ? "PROCESSING" : s) as TransferStatus;
 
+// The sandbox puts a category in failure_type (INCORRECT_ROUTING) and the specific
+// reason in failure_reason ("90701: Account closed"). Read the specific one from its code.
+const FAILURE_CODES: Record<string, string> = { "90701": "ACCOUNT_CLOSED", "90802": "BENEFICIARY_BANK_RETURNED" };
+
 function toTransfer(t: Json): Transfer {
   const failure = (t.failure ?? {}) as Json;
+  const code = String(t.failure_reason ?? failure.reason ?? "").match(/^(\d{5})\b/)?.[1];
   return {
     id: String(t.id),
     request_id: String(t.request_id),
@@ -199,7 +204,7 @@ function toTransfer(t: Json): Transfer {
     fee_currency: (t.fee_currency ?? t.transfer_currency) as Currency,
     reference: String(t.reference ?? ""),
     status: statusOf(t.status),
-    failure_type: (t.failure_type ?? failure.type) as string | undefined,
+    failure_type: ((code && FAILURE_CODES[code]) ?? t.failure_type ?? failure.type) as string | undefined,
     failure_reason: (t.failure_reason ?? failure.reason) as string | undefined,
     history: [{ status: statusOf(t.status), at: String(t.updated_at ?? t.created_at) }],
     metadata: (t.metadata ?? {}) as Record<string, string>,

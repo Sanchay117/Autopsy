@@ -131,7 +131,8 @@ export function detect(args: {
 
     if (active.length >= 2) {
       const extras = active.slice(1);
-      const v = -extras.reduce((s, t) => s + t.transfer_amount + t.fee_amount, 0);
+      // The fee is not refunded on cancel, and the fee break already counts it. Only the payout comes back.
+      const v = -extras.reduce((s, t) => s + t.transfer_amount, 0);
       breaks.push({
         id: `BRK-DUP-${e.id}`,
         kind: "DUPLICATE_PAYMENT",
