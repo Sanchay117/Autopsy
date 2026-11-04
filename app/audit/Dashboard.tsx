@@ -165,7 +165,7 @@ export function Dashboard() {
     if (body.action === "reset") setSelected(null);
     if (body.action === "approve") {
       const r = res.result;
-      setNotice(r?.ok ? "Approved and carried out on the exact terms shown." : r?.reason === "binding_mismatch" ? "Refused: the approval was for different terms than the decision now shows." : r?.reason === "terms_changed" ? "Refused: the bank changed since the approval was asked for. Review the new terms." : "Approval did not go through.");
+      setNotice(r?.ok ? "Approved and carried out on the exact terms shown." : r?.reason === "binding_mismatch" ? "Refused: the approval was for different terms than the decision now shows." : r?.reason === "terms_changed" ? "Refused: the bank changed since the approval was asked for. Review the new terms." : r?.reason === "pending" ? "No outcome yet. Approve again to re-check: it re-sends the same payment id, which pays at most once." : "Approval did not go through.");
     }
     if (body.action === "resend") setNotice(res.result?.refused ? (res.result.reason ?? "Refused by the duplicate lock") : "The lock is free. A replacement still goes through its decision and approval.");
   };

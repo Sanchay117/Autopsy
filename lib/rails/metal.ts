@@ -91,18 +91,23 @@ export class TestnetMetal implements MetalRail {
       "--network", "testnet",
       "--rpc-url", this.rpcUrl,
     ];
+    // A pending pull has no outcome yet. The same command, with the same id, payee and amount, sends
+    // the same pull, which pays at most once: run it again a few times before reporting pending.
     let stdout = "";
-    let code = 0;
-    try {
-      ({ stdout } = await run("metal-agent", args, { timeout: 120_000 }));
-    } catch (e) {
-      const err = e as { code?: number; stdout?: string; stderr?: string };
-      code = err.code ?? 1;
-      stdout = `${err.stdout ?? ""}\n${err.stderr ?? ""}`;
+    let outcome: MetalPayout["outcome"] = "pending";
+    for (let attempt = 0; outcome === "pending" && attempt < 5; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 3_000));
+      let code = 0;
+      try {
+        ({ stdout } = await run("metal-agent", args, { timeout: 120_000 }));
+      } catch (e) {
+        const err = e as { code?: number; stdout?: string; stderr?: string };
+        code = err.code ?? 1;
+        stdout = `${err.stdout ?? ""}\n${err.stderr ?? ""}`;
+      }
+      outcome = outcomeOf(stdout, code);
     }
     const field = (name: string) => stdout.match(new RegExp(`^${name}\\s+(.+)$`, "m"))?.[1]?.trim();
-    // Exit codes from the payout docs: 0 paid, 1 refused, 3 pending, 4 held.
-    const outcome = (field("outcome") ?? { 0: "paid", 1: "refused", 3: "pending", 4: "held" }[code] ?? "refused") as MetalPayout["outcome"];
     return {
       outcome,
       transaction: field("transaction"),
@@ -116,4 +121,17 @@ export class TestnetMetal implements MetalRail {
       detail: outcome === "paid" && field("spent") ? `mandate spent ${field("spent")}` : (stdout.trim().split("\n").slice(-1)[0] ?? ""),
     };
   }
+}
+
+/**
+ * What a `mandate pull` came to. The outcome line can carry a note ("refused, not sent"), a retry of
+ * a paid pull reports "already paid, nothing sent", and an error saying the pull may have been sent
+ * has no outcome yet. Exit codes from the payout docs: 0 paid, 1 refused, 3 pending, 4 held.
+ */
+function outcomeOf(stdout: string, code: number): MetalPayout["outcome"] {
+  if (/already paid, nothing sent/i.test(stdout)) return "paid";
+  if (/may have been sent|payment in doubt|can land until/i.test(stdout)) return "pending";
+  const word = stdout.match(/^outcome\s+(\w+)/m)?.[1];
+  if (word === "paid" || word === "refused" || word === "pending" || word === "held") return word;
+  return ({ 0: "paid", 1: "refused", 3: "pending", 4: "held" } as Record<number, MetalPayout["outcome"]>)[code] ?? "refused";
 }

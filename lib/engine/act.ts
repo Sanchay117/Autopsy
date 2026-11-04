@@ -41,6 +41,8 @@ export interface ActResult {
   ok: boolean;
   text: string;
   objects: string[];
+  /** No outcome yet: the same action may run again, and cannot pay twice. */
+  retry?: boolean;
 }
 
 export async function execute(ctx: ActContext, d: Decision): Promise<ActResult> {
@@ -148,10 +150,18 @@ async function run(ctx: ActContext, d: Decision): Promise<ActResult> {
         const paymentId = `${invoice}-r${prior(invoice).length + 1}-${ctx.ns}`;
         const p = await ctx.metal.payout({ to: vendor!.metalAddress!, amount: o.amount, paymentId });
         ctx.metalPayouts.push({ ...p, decisionId: d.id, invoice });
-        if (p.outcome !== "paid") return { ok: false, text: `Metal ${p.outcome}: ${p.detail}`, objects: [] };
-        line({ entryId: invoice, currency: entry!.currency, amount: entry!.amount, kind: "METAL_SETTLEMENT", memo: `${invoice} settled on Metal: ${fmt(o.amount, "USD")} to ${p.payee.slice(0, 10)}…` });
+        if (p.outcome === "pending") {
+          // It may still land, so nothing is booked and the decision stays open. Running it again
+          // sends the same payment id, which Metal pays at most once.
+          return { ok: false, retry: true, text: `Metal has no outcome yet for payment id ${paymentId}. Running it again re-sends the same id, which pays at most once`, objects: [] };
+        }
+        if (p.outcome !== "paid" && p.outcome !== "held") return { ok: false, text: `Metal ${p.outcome}: ${p.detail}`, objects: [] };
+        // Held: the payee's receive policy keeps it in escrow until the payee releases it. It has left
+        // the account and counts against the mandate, so it is booked and never sent again.
+        const held = p.outcome === "held" ? ", held in escrow until the payee releases it" : "";
+        line({ entryId: invoice, currency: entry!.currency, amount: entry!.amount, kind: "METAL_SETTLEMENT", memo: `${invoice} settled on Metal: ${fmt(o.amount, "USD")} to ${p.payee.slice(0, 10)}…${held}` });
         const scaled = p.onChain !== undefined ? ` (sent as ${p.onChain.toFixed(2)} *USDZ: testnet amounts are scaled down)` : "";
-        return { ok: true, text: `Settled ${invoice} on Metal ${ctx.metal.mode}: ${fmt(o.amount, "USD")}${scaled} to ${p.payee.slice(0, 10)}…, payment id ${paymentId}${p.transaction ? `, tx ${p.transaction.slice(0, 12)}…` : ""}`, objects: [] };
+        return { ok: true, text: `Settled ${invoice} on Metal ${ctx.metal.mode}: ${fmt(o.amount, "USD")}${scaled} to ${p.payee.slice(0, 10)}…${held}, payment id ${paymentId}${p.transaction ? `, tx ${p.transaction.slice(0, 12)}…` : ""}`, objects: [] };
       }
       const ben = ctx.beneficiaries[vendor!.id];
       const method = entry!.method ?? "LOCAL";

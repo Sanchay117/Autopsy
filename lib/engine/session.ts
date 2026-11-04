@@ -352,7 +352,9 @@ export class Session {
   private async carryOut(d: Decision, approved: boolean) {
     this.doing(`${d.id}: ${d.chosen.label}`);
     const res = await execute(this.ctx(), d);
-    const status: Decision["status"] = !res.ok ? "refused" : d.chosen.kind === "CONVERT" ? "scheduled" : "executed";
+    // No outcome yet: leave it open on the same terms. A decision that needed a person waits for one again.
+    const open: Decision["status"] = d.needsApproval ? "awaiting_approval" : "proposed";
+    const status: Decision["status"] = res.retry ? open : !res.ok ? "refused" : d.chosen.kind === "CONVERT" ? "scheduled" : "executed";
     this.decisions.set(d.id, { ...d, status, result: res.text, approved: approved || undefined });
     if (res.ok && FINAL.includes(d.chosen.kind)) this.executedKeys.add(d.breakId);
     this.log("act", `${d.id}${approved ? " (approved)" : ""}: ${res.text}`, d.id);
@@ -452,7 +454,8 @@ export class Session {
       }
       await this.carryOut(now, true);
       await this.pipeline({ act: true });
-      return { ok: this.decisions.get(decisionId)?.status !== "refused" };
+      const after = this.decisions.get(decisionId)?.status;
+      return after === "awaiting_approval" ? { ok: false, reason: "pending" } : { ok: after !== "refused" };
     });
   }
 
