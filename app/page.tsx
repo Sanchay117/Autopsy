@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Count } from "@/components/Count";
+import { Embers } from "@/components/Embers";
 import { Reveal } from "@/components/Reveal";
+import { Scramble } from "@/components/Scramble";
 import { Tally } from "@/components/Tally";
 import { fmt } from "@/lib/engine/money";
 import { POLICY } from "@/lib/engine/policy";
@@ -23,6 +26,34 @@ const NOTCH_CODE = [
 
 // What the Privy Council committee heard between 22 October and 8 November 1834.
 const THEORIES_1834 = ["The plumbers", "The coffee-house servants", "A gas explosion", "Arson"];
+
+// Recorded runs on the real rails (README, Status). The Metal transaction is public; sandbox objects stay private to the account.
+const METAL_TX = "0x203ed6355032e277a581f79c4668bdee7004071d6beb002bc33e952ba5889767";
+const PROOF = [
+  {
+    rail: "Airwallex sandbox",
+    what: "The six breaks seeded with real simulation calls, then the audit, all three pieces of evidence and the approvals. Every pocket closed at zero variance and zero residual.",
+    link: "API 2025-02-14",
+  },
+  {
+    rail: "Metal testnet",
+    what: "INV-2044's replacement, USD 4,516.45, settled as 4.52 *USDZ under a mandate that pays only Brennholz. mandate verify passed all four checks.",
+    link: `tx ${METAL_TX.slice(0, 6)}…${METAL_TX.slice(-4)}`,
+    href: `https://testnet.metalntwx.com/tx/${METAL_TX}`,
+  },
+];
+
+const AIRWALLEX_CALLS = [
+  ["POST", "/api/v1/transfers/create"],
+  ["POST", "/api/v1/transfers/{id}/cancel"],
+  ["POST", "/api/v1/fx/conversions/create"],
+  ["POST", "/api/v1/simulation/transfers/{id}/transition"],
+  ["POST", "/api/v1/simulation/deposit/create"],
+  ["GET", "/api/v1/transfers?request_id=…"],
+];
+
+/** Place in a staggered list, read by the [data-rise] motion. */
+const nth = (i: number) => ({ ["--n" as string]: i }) as React.CSSProperties;
 
 /** Strike timing for the inquiry: each theory, then the verdict. */
 const STRIKE_GAP = 0.42;
@@ -100,7 +131,7 @@ export default async function Home() {
       <header className="bar">
         <div className="wrap">
           <Link href="/" className="brand mono">
-            <img src="/mark.svg" alt="" />
+            <Image src="/mark.svg" alt="" width={26} height={26} priority />
             Autopsy
           </Link>
           <nav className="mono">
@@ -119,6 +150,7 @@ export default async function Home() {
           <div className="hero-art">
             <Image src={turner} alt={PAINTING_ALT} fill priority sizes="130vw" placeholder="blur" />
           </div>
+          <Embers count={24} from={44} to={96} />
           <div className="wrap">
             <div className="hero-copy">
               <p className="eyebrow mono">Reconciliation agent for Airwallex</p>
@@ -250,8 +282,8 @@ export default async function Home() {
                 </p>
               </div>
               <div className="code">
-                {NOTCH_CODE.map((n) => (
-                  <div key={n.val} className="code-row">
+                {NOTCH_CODE.map((n, i) => (
+                  <div key={n.val} className="code-row" data-rise style={nth(i)}>
                     <svg width="80" height="40" viewBox="0 0 80 40" aria-hidden>
                       <rect x="0" y="8" width="80" height="24" fill="var(--hazel)" />
                       {n.w ? (
@@ -279,12 +311,12 @@ export default async function Home() {
           <div className="wrap">
             <Head no="03 / Replay" title={<>A missing payment is not a reason to <em>pay again</em>.</>} />
             <div className="turn">
-              <div className="old">
+              <div className="old" data-rise>
                 <span className="mono">The usual move</span>
                 <h3>The supplier says it never arrived, so send it again.</h3>
                 <p>If the first payment was only slow, the supplier is now paid twice and someone spends a month recovering it across a border.</p>
               </div>
-              <div className="new">
+              <div className="new" data-rise style={nth(2)}>
                 <span className="mono flame">What Autopsy does</span>
                 <h3>Replay the account before touching it.</h3>
                 <p>
@@ -294,11 +326,11 @@ export default async function Home() {
                 <div className="replay">
                   <div>
                     <span>{flight.counterfactual!.actual.label}</span>
-                    <span className="big">{flight.counterfactual!.actual.value}</span>
+                    <span className="big"><Count value={flight.counterfactual!.actual.value} /></span>
                   </div>
                   <div>
                     <span>{flight.counterfactual!.replayed.label}</span>
-                    <span className="big worse">{flight.counterfactual!.replayed.value}</span>
+                    <span className="big worse"><Count value={flight.counterfactual!.replayed.value} ms={2000} /></span>
                   </div>
                 </div>
                 <p style={{ marginTop: 20 }}>
@@ -321,7 +353,7 @@ export default async function Home() {
                 ["Act", "Cancels, converts, pays or journals through Airwallex, under a duplicate lock. Anything over its limit waits for a person.", step("act", "DUP")],
                 ["Learn", "Turns a confirmed cause into a standing rule, so the same break cannot come back next week.", step("learn", "R-FEE")],
               ].map(([h, p, real], i) => (
-                <div key={h} className="step">
+                <div key={h} className="step" data-rise style={nth(i)}>
                   <span className="mono dim">0{i + 1}</span>
                   <h3>{h}</h3>
                   <p>{p}</p>
@@ -353,11 +385,11 @@ export default async function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {first.breaks.map((b) => {
+                  {first.breaks.map((b, i) => {
                     const d = diag(b.id);
                     const x = dec(b.id);
                     return (
-                      <tr key={b.id}>
+                      <tr key={b.id} data-rise style={nth(i)}>
                         <td className="id">{b.id.replace("BRK-", "")}</td>
                         <td><Ids text={b.title} /></td>
                         <td className="cause">
@@ -381,10 +413,10 @@ export default async function Home() {
               </table>
             </div>
             <div className="residual">
-              {first.pockets.opening.filter((p) => p.variance !== 0).map((p) => (
-                <div key={p.currency}>
+              {first.pockets.opening.filter((p) => p.variance !== 0).map((p, i) => (
+                <div key={p.currency} data-rise style={nth(i)}>
                   <span className="mono dim">{p.currency} gap found</span>
-                  <span className="big num">{fmt(p.variance, p.currency)}</span>
+                  <span className="big num"><Count value={fmt(p.variance, p.currency)} /></span>
                   <span className="mono dim">explained {fmt(p.explained, p.currency)} · residual {fmt(p.residual, p.currency)}</span>
                 </div>
               ))}
@@ -401,7 +433,7 @@ export default async function Home() {
             </Head>
             <div className="evidence">
               {final.diffs.map((d, i) => (
-                <div key={d.evidenceId} className="ev">
+                <div key={d.evidenceId} className="ev" data-rise style={nth(i * 2)}>
                   <span className="mono dim">Evidence {i + 1}</span>
                   <h3><Ids text={d.evidenceLabel} /></h3>
                   {d.changes.map((c) => (
@@ -426,8 +458,8 @@ export default async function Home() {
                 <p className="mono dim" style={{ marginBottom: 12 }}>Autonomy by confidence · policy {POLICY.version}</p>
                 <table className="tiers">
                   <tbody>
-                    {POLICY.autonomy.map((t) => (
-                      <tr key={t.min}>
+                    {POLICY.autonomy.map((t, i) => (
+                      <tr key={t.min} data-rise style={nth(i)}>
                         <td>confidence ≥ {t.min.toFixed(2)}</td>
                         <td>{t.limitUsd ? `moves up to ${fmt(t.limitUsd, "USD")} alone` : "every action needs a person"}</td>
                       </tr>
@@ -435,7 +467,7 @@ export default async function Home() {
                   </tbody>
                 </table>
                 <div className="guard">
-                  <div>
+                  <div data-rise style={nth(0)}>
                     <span className="k mono">Duplicate lock</span>
                     <span>
                       One live payment per invoice. Before paying, it re-reads every earlier attempt from Airwallex. Request ids are
@@ -443,22 +475,22 @@ export default async function Home() {
                       sending another.
                     </span>
                   </div>
-                  <div>
+                  <div data-rise style={nth(1)}>
                     <span className="k mono">Reserve floor</span>
                     <span>The USD pocket never goes under {fmt(5_000, "USD")}. INV-2050 waited for its funding because paying it {floorWhy.charAt(0).toLowerCase() + floorWhy.slice(1)}.</span>
                   </div>
-                  <div>
+                  <div data-rise style={nth(2)}>
                     <span className="k mono">Second payments</span>
                     <span>Any replacement for an invoice goes to a person, whatever the confidence. So do new bank details and escalations.</span>
                   </div>
-                  <div>
+                  <div data-rise style={nth(3)}>
                     <span className="k mono">The model</span>
                     <span>
                       Claude reads emails into a fixed schema and words explanations. It never sees limits and never picks an action. An
                       account quoted in an email is never paid; only the vendor master is.
                     </span>
                   </div>
-                  <div>
+                  <div data-rise style={nth(4)}>
                     <span className="k mono">Messages</span>
                     <span>Every note to a supplier or customer is a draft. Nothing is sent.</span>
                   </div>
@@ -466,25 +498,27 @@ export default async function Home() {
               </div>
               <div>
                 <p className="mono dim" style={{ marginBottom: 12 }}>An approval is bound to its exact terms</p>
-                <div className="receipt">
-                  <h4>{receipt.id.replace("DEC-", "")}</h4>
-                  <dl>
-                    {Object.entries(receipt.bindingTerms).map(([k, v]) => (
-                      <div key={k} style={{ display: "contents" }}>
-                        <dt>{k}</dt>
-                        <dd>{k === "evidence" ? String(v).split(",").map((e) => e.slice(0, 11) + "…").join(", ") : String(v)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <div className="hash">
-                    <span>binding</span>
-                    <b>{receipt.binding}</b>
+                <div className="slot" data-reveal>
+                  <div className="receipt">
+                    <h4>{receipt.id.replace("DEC-", "")}</h4>
+                    <dl>
+                      {Object.entries(receipt.bindingTerms).map(([k, v]) => (
+                        <div key={k} style={{ display: "contents" }}>
+                          <dt>{k}</dt>
+                          <dd>{k === "evidence" ? String(v).split(",").map((e) => e.slice(0, 11) + "…").join(", ") : String(v)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <div className="hash">
+                      <span>binding</span>
+                      <Scramble text={receipt.binding} delay={150} />
+                    </div>
+                    <p style={{ fontSize: 12.5, opacity: 0.75 }}>
+                      sha-256 of the lines above. Change any one and the approval no longer applies; the agent re-reads the bank before it
+                      acts on a signature.
+                    </p>
                   </div>
-                  <p style={{ fontSize: 12.5, opacity: 0.75 }}>
-                    sha-256 of the lines above. Change any one and the approval no longer applies; the agent re-reads the bank before it
-                    acts on a signature.
-                  </p>
-                </div>
+                  </div>
               </div>
             </div>
           </div>
@@ -494,16 +528,13 @@ export default async function Home() {
           <div className="wrap">
             <Head no="08 / Rails" title={<>Two rails, <em>one lock</em>.</>} />
             <div className="rails">
-              <div>
+              <div data-rise>
                 <span className="mono dim">Airwallex · this run: {final.mode.airwallex}</span>
                 <h3>Where the money is</h3>
                 <div className="calls">
-                  <span><b>POST</b>/api/v1/transfers/create</span>
-                  <span><b>POST</b>/api/v1/transfers/{"{id}"}/cancel</span>
-                  <span><b>POST</b>/api/v1/fx/conversions/create</span>
-                  <span><b>POST</b>/api/v1/simulation/transfers/{"{id}"}/transition</span>
-                  <span><b>POST</b>/api/v1/simulation/deposit/create</span>
-                  <span><b>GET</b>/api/v1/transfers?request_id=…</span>
+                  {AIRWALLEX_CALLS.map(([verb, path], i) => (
+                    <span key={path} style={{ ["--i" as string]: i }}><b>{verb}</b>{path}</span>
+                  ))}
                 </div>
                 <p className="dim" style={{ fontSize: 16 }}>
                   {final.mode.airwallex === "sandbox" ? "Breaks are seeded with real simulation calls" : "With sandbox keys, breaks are seeded with these simulation calls"}:
@@ -511,11 +542,11 @@ export default async function Home() {
                   request id.{final.mode.airwallex === "sandbox" ? "" : " Without keys, an offline mock follows the same sandbox rules."}
                 </p>
               </div>
-              <div>
+              <div data-rise style={nth(2)}>
                 <span className="mono dim">Metal · this run: {final.mode.metal}</span>
                 <h3>Where a returned payment can go</h3>
                 <div className="calls">
-                  <span><b>$</b>metal-agent mandate pull --to … --payment-id INV-2044-r2</span>
+                  <span className="cmd"><b>$</b>metal-agent mandate pull --to … --payment-id INV-2044-r2</span>
                 </div>
                 <p className="dim" style={{ fontSize: 16 }}>
                   When a SWIFT payment comes back and the supplier has offered stablecoin settlement in writing, Autopsy can settle on
@@ -524,13 +555,28 @@ export default async function Home() {
                 </p>
               </div>
             </div>
+            <div className="proof">
+              <p className="mono dim proof-head">Run against the real rails · 3 November 2026</p>
+              {PROOF.map((p, i) => (
+                <div key={p.rail} className="proof-row" data-rise style={nth(i)}>
+                  <span className="mono flame">{p.rail}</span>
+                  <p>{p.what}</p>
+                  {p.href ? (
+                    <a className="num" href={p.href} target="_blank" rel="noreferrer">{p.link} <span aria-hidden>↗</span></a>
+                  ) : (
+                    <span className="num dim">{p.link}</span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="close">
+        <section className="close" data-reveal>
           <div className="close-art" aria-hidden>
             <Image src={turner} alt="" fill sizes="100vw" />
           </div>
+          <Embers count={16} from={8} to={92} />
           <div className="wrap">
             <h2>Every fire has a cause.</h2>
             <p>So does every gap in your books.</p>

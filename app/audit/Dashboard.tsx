@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tally } from "@/components/Tally";
@@ -196,7 +197,7 @@ export function Dashboard() {
       <div className="d-top">
       <header className="d-bar">
         <Link href="/" className="brand mono">
-          <img src="/mark.svg" alt="" />
+          <Image src="/mark.svg" alt="" width={26} height={26} priority />
           Autopsy
         </Link>
         <span className="d-company">

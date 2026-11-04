@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 
 /**
- * Marks [data-reveal] sections once they enter the viewport, so their motion
- * starts there. Content is only held back under html.js, so the page still
- * reads with scripts off. Also marks the page once it scrolls, for the bar.
+ * Marks [data-reveal] sections, and the [data-rise] blocks inside them, once
+ * they enter the viewport, so their motion starts there. Content is only held
+ * back under html.js, so the page still reads with scripts off. Also marks the
+ * page once it scrolls, for the bar.
  */
 export function Reveal() {
   useEffect(() => {
@@ -14,7 +15,7 @@ export function Reveal() {
     const onScroll = () => root.toggleAttribute("data-scrolled", window.scrollY > 40);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    const els = document.querySelectorAll<HTMLElement>("[data-reveal]");
+    const els = document.querySelectorAll<HTMLElement>("[data-reveal], [data-rise]");
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {

@@ -1202,6 +1202,47 @@ button:focus-visible {
   margin-right: 8px;
 }
 
+.proof {
+  margin-top: 40px;
+}
+
+.proof-head {
+  padding-bottom: 14px;
+}
+
+.proof-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: baseline;
+  padding: 18px 0;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.proof-row p {
+  font-size: 16px;
+  color: var(--smoke-dim);
+  max-width: 64ch;
+}
+
+.proof-row a {
+  font-size: 13px;
+  color: var(--flame);
+  text-decoration: none;
+  border-bottom: 1px solid var(--flame-deep);
+  white-space: nowrap;
+  justify-self: start;
+}
+
+.proof-row a:hover {
+  color: var(--smoke);
+}
+
+.proof-row span.num {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 /* ---------- Close: the painting again, from the water ---------- */
 
 .close {
@@ -1582,6 +1623,11 @@ footer a {
     overflow-wrap: anywhere;
   }
 
+  .proof-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
   .ev {
     border-right: 0;
     border-bottom: 1px solid var(--rule);
@@ -1638,6 +1684,223 @@ footer a {
 
   .close {
     margin-top: 96px;
+  }
+}
+
+/* ---------- Motion ----------
+   Every block marked [data-rise] enters when it reaches the viewport, staggered
+   by --n. Things are held back only under html.js and with motion allowed, so
+   the page reads the same without either. */
+
+/* Sparks lifting off the fire, slow enough to feel rather than watch. */
+.embers {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.embers i {
+  position: absolute;
+  left: var(--x);
+  bottom: var(--y);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: var(--smoke);
+  box-shadow: 0 0 4px 1px var(--flame), 0 0 14px 4px var(--ember-glow);
+  opacity: 0;
+  animation: ember var(--t) linear var(--d) infinite;
+}
+
+@keyframes ember {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  12% {
+    opacity: 0.95;
+  }
+  45% {
+    opacity: 0.5;
+  }
+  62% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -62vh) scale(0.5);
+  }
+}
+
+.close-art img {
+  animation: drift 30s ease-in-out infinite alternate;
+}
+
+/* The approval slip feeds out of a printer slot, one line at a time. */
+.slot {
+  position: relative;
+  overflow: hidden;
+}
+
+.slot::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 6px;
+  background: linear-gradient(rgb(var(--umber-rgb) / 0.6), transparent);
+}
+
+.calls .cmd::after {
+  content: "";
+  display: inline-block;
+  width: 0.55em;
+  height: 1.1em;
+  margin-left: 6px;
+  vertical-align: -0.2em;
+  background: var(--flame);
+  animation: caret 1.1s steps(1) infinite;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes cut {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes ink {
+  from {
+    text-decoration-color: transparent;
+  }
+}
+
+@keyframes print {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes fuse {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* A burn line along the bar, as far down the page as you have read. */
+@supports (animation-timeline: scroll()) {
+  .bar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--flame-deep) 30%, var(--flame));
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: fuse linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-rise]:not([data-seen]),
+  .js [data-reveal]:not([data-seen]) .sec-head h2,
+  .js [data-reveal]:not([data-seen]) .sec-intro,
+  .js .close:not([data-seen]) :is(h2, p, .btn) {
+    opacity: 0;
+  }
+
+  .js .slot:not([data-seen]) .receipt {
+    transform: translateY(-100%);
+  }
+
+  [data-rise][data-seen] {
+    animation: enter 0.8s var(--ease) calc(var(--n, 0) * 90ms) backwards;
+  }
+
+  [data-reveal][data-seen] .sec-head h2 {
+    animation: enter 0.9s var(--ease) 0.15s backwards;
+  }
+
+  [data-reveal][data-seen] .sec-intro {
+    animation: enter 0.9s var(--ease) 0.3s backwards;
+  }
+
+  /* 02: each notch is cut into the hazel, then its value is struck. */
+  .code-row[data-seen] :is(polygon, line) {
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+    animation: cut 0.45s var(--ease) calc(var(--n) * 90ms + 0.3s) backwards;
+  }
+
+  .code-row[data-seen] .val {
+    animation: stamp 0.6s linear calc(var(--n) * 90ms + 0.55s) backwards;
+  }
+
+  /* 03: the usual move is struck out once it is read. */
+  .turn .old[data-seen] h3 {
+    animation: ink 0.6s ease 0.6s backwards;
+  }
+
+  /* 04: each step's line from the real run is written after the step. */
+  .step[data-seen] .real {
+    animation: show 0.5s ease calc(var(--n) * 90ms + 0.5s) backwards;
+  }
+
+  /* 05: entries written into the ledger, the theories inked out, the signatures stamped. */
+  .breaks tr[data-seen] .ruled s {
+    animation: ink 0.5s ease calc(var(--n) * 90ms + 0.45s) backwards;
+  }
+
+  .breaks tr[data-seen] .who.person {
+    animation: stamp 0.7s linear calc(var(--n) * 90ms + 0.6s) backwards;
+  }
+
+  /* 06: the old decision struck, then the new one written under it. */
+  .ev[data-seen] .from {
+    animation: ink 0.5s ease calc(var(--n) * 90ms + 0.5s) backwards;
+  }
+
+  .ev[data-seen] .to {
+    animation: show 0.5s ease calc(var(--n) * 90ms + 0.8s) backwards;
+  }
+
+  /* 07 */
+  .slot[data-seen] .receipt {
+    animation: print 1.5s steps(18, end) 0.2s backwards;
+  }
+
+  /* 08: the calls come in one at a time, like a log. */
+  .rails > div[data-seen] .calls span {
+    animation: show 0.3s ease calc(var(--n, 0) * 90ms + var(--i, 0) * 110ms + 0.35s) backwards;
+  }
+
+  .close[data-seen] h2 {
+    animation: enter 1s var(--ease) 0.1s backwards;
+  }
+
+  .close[data-seen] p {
+    animation: enter 0.9s var(--ease) 0.35s backwards;
+  }
+
+  .close[data-seen] .btn {
+    animation: enter 0.9s var(--ease) 0.55s backwards;
   }
 }
 
