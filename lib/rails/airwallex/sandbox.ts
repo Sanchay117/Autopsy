@@ -25,12 +25,27 @@ export class SandboxAirwallex implements AirwallexRail {
     private usdGlobalAccountId: string,
   ) {}
 
+  /**
+   * A request the network dropped before any answer came ("fetch failed") is sent again, but only
+   * where sending it twice changes nothing: logging in and reading.
+   */
+  private async send(url: string, init: RequestInit, again: boolean) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await fetch(url, init);
+      } catch (err) {
+        if (!again || attempt >= 3) throw err;
+        await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+      }
+    }
+  }
+
   private async login() {
     if (this.token && Date.now() < this.token.expires) return this.token.value;
-    const res = await fetch(`${BASE}/api/v1/authentication/login`, {
+    const res = await this.send(`${BASE}/api/v1/authentication/login`, {
       method: "POST",
       headers: { "x-client-id": this.clientId, "x-api-key": this.apiKey },
-    });
+    }, true);
     if (!res.ok) throw new RailError("credentials_invalid", await res.text(), res.status);
     const body = (await res.json()) as { token: string };
     // Tokens last 30 minutes. Refresh a little early.
@@ -42,7 +57,7 @@ export class SandboxAirwallex implements AirwallexRail {
   async call<T>(method: "GET" | "POST", path: string, body?: Json): Promise<T> {
     const token = await this.login();
     for (let attempt = 0; ; attempt++) {
-      const res = await fetch(`${BASE}${path}`, {
+      const res = await this.send(`${BASE}${path}`, {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -51,7 +66,7 @@ export class SandboxAirwallex implements AirwallexRail {
           ...(process.env.AWX_API_VERSION ? { "x-api-version": process.env.AWX_API_VERSION } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
-      });
+      }, method === "GET");
       // The sandbox allows 10 requests per second per endpoint. Back off on 429.
       if (res.status === 429 && attempt < 4) {
         await new Promise((r) => setTimeout(r, 400 * 2 ** attempt));
