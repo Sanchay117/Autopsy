@@ -123,6 +123,20 @@ AWX_MODE=sandbox pnpm dev
 - The sandbox's FX rate makes FXP-118 cost about USD 220 more than the plan, so the FX break is a loss rather than the mock's gain.
 - Conversions live at `/api/v1/fx/conversions`. A new transfer stays SCHEDULED for about a second and refuses simulated moves until it is PROCESSING. It also refuses cancel while SCHEDULED and for a moment after turning PROCESSING. SWIFT payouts created close together sometimes return `fee_unknown`. The client waits or retries in each case, and never with a new request id.
 
+## Deploying
+
+The public demo runs in mock mode on [Render](https://render.com) from `render.yaml`. In Render choose New, then Blueprint, and pick this repo. It needs no keys. To have Claude read the emails, add `ANTHROPIC_API_KEY` on the service's Environment page.
+
+Any host that keeps one Node 24 process running will do:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm start      # listens on $PORT
+```
+
+Run a single instance, and not on a serverless host. The session lives in the process's memory, every visitor shares it, and some sandbox steps take 15 to 25 seconds. A live sandbox deploy also needs `.autopsy/sandbox.json` on the host, and Metal testnet needs the `metal-agent` CLI and the mandate credential. Keep a live deploy private: anyone who can open it can move sandbox money and spend the mandate.
+
 ## Checks
 
 ```bash

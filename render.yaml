@@ -1,0 +1,23 @@
+# Render Blueprint for the public demo. In Render choose New, then Blueprint, and pick this repo.
+#
+# It runs in mock mode, which needs no keys and moves no money. The session lives in this one
+# process's memory, so keep it to a single instance. On the free plan Render spins the service
+# down after 15 idle minutes, which also starts the demo over.
+#
+# To have Claude read the emails instead of the built-in rules, add ANTHROPIC_API_KEY on the
+# service's Environment page once it exists.
+services:
+  - type: web
+    name: autopsy
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npx -y pnpm@12.4.1 install --frozen-lockfile && npx -y pnpm@12.4.1 build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: AWX_MODE
+        value: mock
+      - key: METAL_MODE
+        value: mock
