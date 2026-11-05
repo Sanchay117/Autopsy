@@ -4,6 +4,9 @@
 
 Built for the Airwallex Agentic Banking Hackathon, November 2026.
 
+- **Film:** [youtu.be/iGvJUqS1HSU](https://youtu.be/iGvJUqS1HSU), 3:28. One real run on the Airwallex sandbox and Metal testnet.
+- **Live demo:** [autopsy-xrcq.onrender.com](https://autopsy-xrcq.onrender.com), on the offline mock. After a quiet spell the first visit can take a minute to wake.
+
 Every night Autopsy lays a company's books against its Airwallex wallet, like the two halves of a split tally. Wherever a notch does not fit, it:
 
 1. finds the cause, with every step tied to evidence;
