@@ -28,7 +28,7 @@ const NOTCH_CODE = [
 const THEORIES_1834 = ["The plumbers", "The coffee-house servants", "A gas explosion", "Arson"];
 
 // Recorded runs on the real rails (README, Status). The Metal transaction is public; sandbox objects stay private to the account.
-const METAL_TX = "0x203ed6355032e277a581f79c4668bdee7004071d6beb002bc33e952ba5889767";
+const METAL_TX = "0xc6bbcaa26792c1937faf28af6d75a8512c73cc82ddc6a770a3680c43775690a8";
 const PROOF = [
   {
     rail: "Airwallex sandbox",
@@ -37,7 +37,7 @@ const PROOF = [
   },
   {
     rail: "Metal testnet",
-    what: "INV-2044's replacement, USD 4,516.45, settled as 4.52 *USDZ under a mandate that pays only Brennholz. mandate verify passed all four checks.",
+    what: "INV-2044's replacement, USD 4,532.15, settled as 4.53 *USDZ under a mandate that pays only Brennholz. mandate verify passes all four checks.",
     link: `tx ${METAL_TX.slice(0, 6)}…${METAL_TX.slice(-4)}`,
     href: `https://testnet.metalntwx.com/tx/${METAL_TX}`,
   },
@@ -556,7 +556,7 @@ export default async function Home() {
               </div>
             </div>
             <div className="proof">
-              <p className="mono dim proof-head">Run against the real rails · 3 November 2026</p>
+              <p className="mono dim proof-head">Run against the real rails · run 459674, 4 November 2026</p>
               {PROOF.map((p, i) => (
                 <div key={p.rail} className="proof-row" data-rise style={nth(i)}>
                   <span className="mono flame">{p.rail}</span>

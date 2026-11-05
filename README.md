@@ -98,7 +98,7 @@ METAL_MODE=testnet pnpm dev
 
 The faucet grants 100 *USDZ at a time, so testnet settles a scaled amount: `METAL_SCALE` (0.001 by default) *USDZ per USD. The dashboard and the trace say so next to every testnet payout. The 10 *USDZ cap means an amount that was not scaled can never pay.
 
-**Status:** run on 3 November 2026 with the sandbox. E2 settled INV-2044 for USD 4,516.45 as 4.52 *USDZ, payment id `INV-2044-r2-5f584c`, transaction [0x203e…9767](https://testnet.metalntwx.com/tx/0x203ed6355032e277a581f79c4668bdee7004071d6beb002bc33e952ba5889767). `metal-agent mandate verify` passed all four checks for it: the mandate is bound, the credential matches it, its signatures hold, and the payment is inside its limits.
+**Status:** the run in the film, run 459674 on 4 November 2026 with the sandbox. E2 settled INV-2044 for USD 4,532.15 as 4.53 *USDZ, payment id `INV-2044-r2-459674`, transaction [0xc6bb…90a8](https://testnet.metalntwx.com/tx/0xc6bbcaa26792c1937faf28af6d75a8512c73cc82ddc6a770a3680c43775690a8). `metal-agent mandate verify` passes all four checks for it: the mandate is bound, the credential matches it, its signatures hold, and the payment is inside its limits. After it the mandate had spent 13.59 of its 90 *USDZ.
 
 ## Running against the real sandbox
 
@@ -120,7 +120,7 @@ AWX_MODE=sandbox pnpm dev
 - A failed payout comes back without its fee.
 - A PROCESSING payout can be cancelled.
 
-**Status:** run end to end against a live sandbox account on 3 November 2026 with `AWX_API_VERSION=2025-02-14`. The seed, the audit, all three pieces of evidence and the approvals ran, and every pocket ended with zero variance and zero residual. What the sandbox does that the mock does not:
+**Status:** run end to end against a live sandbox account on 3 November 2026, and again on 4 November for the film (run 459674), with `AWX_API_VERSION=2025-02-14`. The seed, the audit, all three pieces of evidence and the approvals ran, and every pocket ended with zero variance and zero residual. What the sandbox does that the mock does not:
 
 - Local payouts carry fees (GBP 2.24 on Faster Payments, USD 3.00 on ACH) and SWIFT costs EUR 13.41, not 12.85. The audit finds the seeded ones as extra fee breaks and books them, so a sandbox run shows more than six breaks. Payouts Autopsy makes itself book their fee at the time they are made.
 - The sandbox's FX rate makes FXP-118 cost about USD 220 more than the plan, so the FX break is a loss rather than the mock's gain.
